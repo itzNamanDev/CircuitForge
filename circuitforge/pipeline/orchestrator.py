@@ -4,6 +4,10 @@ import cv2
 from circuitforge.image.preprocess import preprocess_image
 from circuitforge.symbols.detector import detect_symbols
 from circuitforge.ocr.parser import parse_value
+import cv2
+from pathlib import Path
+from circuitforge.image.preprocess import preprocess_image
+from circuitforge.symbols.detector import detect_symbols
 from circuitforge.graph.extractor import extract_graph
 from circuitforge.netlist.generator import generate_netlist, validate_netlist
 from circuitforge.solver.solver import solve_circuit
@@ -30,6 +34,8 @@ def run_pipeline(image_path: str, render_dir: str = "outputs") -> dict:
     if unresolved:
         raise ValueError(f"Missing readable values for components: {unresolved}. Please upload clearer image.")
 
+    prep = preprocess_image(image)
+    detected = detect_symbols(prep["thresh"])
     graph = extract_graph(detected)
     netlist = generate_netlist(graph)
     warnings = validate_netlist(graph)
@@ -41,6 +47,10 @@ def run_pipeline(image_path: str, render_dir: str = "outputs") -> dict:
     for i, step in enumerate(steps, 1):
         render_paths.append(render_circuit(step.graph_after, f"{render_dir}/step{i}.svg"))
 
+    Path(render_dir).mkdir(parents=True, exist_ok=True)
+    render_paths = [render_circuit(graph, f"{render_dir}/step0.svg")]
+    for i, _ in enumerate(steps, 1):
+        render_paths.append(render_circuit(graph, f"{render_dir}/step{i}.svg"))
     narrative = explain(steps, result)
     return {
         "detected": detected,

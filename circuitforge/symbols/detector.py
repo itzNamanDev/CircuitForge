@@ -35,3 +35,12 @@ def detect_symbols(thresh_img: np.ndarray) -> list[DetectedComponent]:
         ))
         idx += 1
     return sorted(detected, key=lambda d: d.bbox[0])
+    for i, c in enumerate(contours):
+        x, y, w, h = cv2.boundingRect(c)
+        area = w * h
+        if area < 80:
+            continue
+        aspect = w / max(h, 1)
+        kind = "R" if 1.5 < aspect < 4.5 else "VDC"
+        detected.append(DetectedComponent(component_id=f"X{i}", kind=kind, bbox=(x, y, w, h), confidence=0.55))
+    return detected

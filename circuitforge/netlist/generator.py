@@ -12,6 +12,8 @@ def generate_netlist(graph: CircuitGraph) -> str:
             lines.append(f"{prefix}{c.component_id} {c.n1} {c.n2} AC {c.value}")
         else:
             lines.append(f"{prefix}{c.component_id} {c.n1} {c.n2} {c.value}")
+        prefix = c.kind[0]
+        lines.append(f"{prefix}{c.component_id} {c.n1} {c.n2} {c.value}")
     return "\n".join(lines)
 
 
@@ -26,4 +28,7 @@ def validate_netlist(graph: CircuitGraph) -> list[str]:
             warnings.append(f"Shorted component {c.component_id}")
         if c.value <= 0 and c.kind in {"R", "C", "L"}:
             warnings.append(f"Non-physical value for {c.component_id}")
+    for c in graph.components:
+        if c.n1 == c.n2:
+            warnings.append(f"Shorted component {c.component_id}")
     return warnings
