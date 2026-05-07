@@ -8,11 +8,18 @@ from circuitforge.netlist.generator import generate_netlist, validate_netlist
 from circuitforge.solver.solver import solve_circuit
 from circuitforge.simplifier.engine import simplify
 from circuitforge.renderer.draw import render_circuit
+from circuitforge.common.models import DetectedComponent
 
 
 def test_preprocessing():
     img = np.zeros((100, 100, 3), dtype=np.uint8)
     out = preprocess_image(img)
+    assert "edges" in out and "junction_map" in out
+
+
+def test_ocr_parser():
+    v, u = parse_value("1k ohm")
+    assert v == 1000 and u == "ohm"
     assert "edges" in out and out["gray"].shape == (100, 100)
 
 
@@ -28,6 +35,19 @@ def test_symbol_detection_integration():
 
 
 def test_graph_netlist_solver_simplify_render(tmp_path):
+    d = [
+        DetectedComponent("R1", "R", (0, 0, 20, 10), 0.9, value=100.0, unit="ohm", terminal_points=((5, 5), (45, 5))),
+        DetectedComponent("R2", "R", (50, 0, 20, 10), 0.9, value=200.0, unit="ohm", terminal_points=((45, 5), (80, 5))),
+        DetectedComponent("V1", "VDC", (0, 20, 20, 20), 0.9, value=10.0, unit="v", terminal_points=((5, 25), (80, 25))),
+    ]
+    g = extract_graph(d)
+    nl = generate_netlist(g)
+    assert "R" in nl and "V" in nl
+    assert validate_netlist(g) == []
+    sol = solve_circuit(g)
+    assert "0" in sol.node_voltages
+    steps = simplify(g)
+    assert isinstance(steps, list)
     from circuitforge.common.models import DetectedComponent
     d = [DetectedComponent("1", "R", (0,0,20,10)), DetectedComponent("2", "R", (30,0,20,10))]
     g = extract_graph(d)
@@ -43,6 +63,10 @@ def test_graph_netlist_solver_simplify_render(tmp_path):
 
 
 def test_ambiguity_handling():
+    d = [DetectedComponent("R1", "R", (0, 0, 20, 10), 0.9)]
+    try:
+        extract_graph(d)
+        assert False, "Expected ambiguity error"
     from circuitforge.common.models import DetectedComponent
     try:
         extract_graph([DetectedComponent("1", "R", (0,0,5,5))])

@@ -1,4 +1,9 @@
 from __future__ import annotations
+from pathlib import Path
+import cv2
+from circuitforge.image.preprocess import preprocess_image
+from circuitforge.symbols.detector import detect_symbols
+from circuitforge.ocr.parser import parse_value
 import cv2
 from pathlib import Path
 from circuitforge.image.preprocess import preprocess_image
@@ -15,6 +20,20 @@ def run_pipeline(image_path: str, render_dir: str = "outputs") -> dict:
     image = cv2.imread(image_path)
     if image is None:
         raise ValueError("Could not read image")
+
+    prep = preprocess_image(image)
+    detected = detect_symbols(prep["thresh"])
+    if not detected:
+        raise ValueError("Ambiguous/unsupported circuit image. Please upload a clearer textbook-style image.")
+
+    # OCR stage (pluggable). v1 expects detection or user annotation; never guesses silently.
+    for d in detected:
+        if d.value_text:
+            d.value, d.unit = parse_value(d.value_text)
+    unresolved = [d.component_id for d in detected if d.value is None or d.unit is None]
+    if unresolved:
+        raise ValueError(f"Missing readable values for components: {unresolved}. Please upload clearer image.")
+
     prep = preprocess_image(image)
     detected = detect_symbols(prep["thresh"])
     graph = extract_graph(detected)
@@ -22,6 +41,12 @@ def run_pipeline(image_path: str, render_dir: str = "outputs") -> dict:
     warnings = validate_netlist(graph)
     result = solve_circuit(graph)
     steps = simplify(graph)
+
+    Path(render_dir).mkdir(parents=True, exist_ok=True)
+    render_paths = [render_circuit(graph, f"{render_dir}/step0.svg")]
+    for i, step in enumerate(steps, 1):
+        render_paths.append(render_circuit(step.graph_after, f"{render_dir}/step{i}.svg"))
+
     Path(render_dir).mkdir(parents=True, exist_ok=True)
     render_paths = [render_circuit(graph, f"{render_dir}/step0.svg")]
     for i, _ in enumerate(steps, 1):
