@@ -6,6 +6,15 @@ from circuitforge.pipeline.orchestrator import run_pipeline
 
 st.set_page_config(page_title="CircuitForge", layout="wide")
 st.title("CircuitForge AI Circuit Solver")
+st.caption("Circuit analysis pipeline: extraction + netlist + physics solver. LLM is explanation-only.")
+
+if "history" not in st.session_state:
+    st.session_state.history = []
+if "result_data" not in st.session_state:
+    st.session_state.result_data = None
+
+uploaded = st.file_uploader("Upload circuit image", type=["png", "jpg", "jpeg"])
+query = st.chat_input("Ask: solve this circuit / show first simplification / show next step / why combined?")
 st.caption("Structured extraction + netlist + physics solver. LLM used for explanations only.")
 
 if "history" not in st.session_state:
@@ -19,6 +28,18 @@ if uploaded:
         tmp.write(uploaded.read())
         img_path = tmp.name
     st.image(img_path, caption="Uploaded circuit", use_container_width=True)
+    try:
+        st.session_state.result_data = run_pipeline(img_path, render_dir="outputs")
+    except ValueError as exc:
+        st.error(str(exc))
+        st.stop()
+
+if st.session_state.result_data:
+    data = st.session_state.result_data
+    st.subheader("Extracted Components")
+    st.write([vars(d) for d in data["detected"]])
+    st.subheader("Generated Netlist")
+    st.code(data["netlist"])
     data = run_pipeline(img_path, render_dir="outputs")
 
     st.subheader("Extracted Components")
@@ -51,5 +72,21 @@ if uploaded:
 
 if query:
     st.session_state.history.append({"role": "user", "content": query})
+    answer = "Please upload and solve a circuit first."
+    d = st.session_state.result_data
+    if d:
+        q = query.lower()
+        if "first simplification" in q and d["steps"]:
+            s = d["steps"][0]; answer = f"Step 1: {s.description}. {s.reason}"
+        elif "next step" in q:
+            answer = "V1 currently returns deterministic step list; see Simplification Steps section."
+        elif "why" in q and "combined" in q and d["steps"]:
+            answer = d["steps"][0].reason
+        elif "equivalent" in q:
+            answer = f"Equivalent resistance from solver/simplifier outputs: {d['result'].equivalent_resistance}"
+        else:
+            answer = d["explanation"]
+    st.session_state.history.append({"role": "assistant", "content": answer})
+
 for msg in st.session_state.history:
     st.chat_message(msg["role"]).write(msg["content"])
