@@ -22,6 +22,8 @@ class DetectedComponent:
     terminal_points: tuple[tuple[int, int], tuple[int, int]] | None = None
     orientation: Literal["h", "v"] = "h"
 
+    confidence: float = 0.0
+    value_text: str | None = None
 
 @dataclass
 class CircuitComponent:

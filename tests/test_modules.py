@@ -20,6 +20,11 @@ def test_preprocessing():
 def test_ocr_parser():
     v, u = parse_value("1k ohm")
     assert v == 1000 and u == "ohm"
+    assert "edges" in out and out["gray"].shape == (100, 100)
+
+
+def test_ocr_parser():
+    assert parse_value("1k ohm")[0] == 1000
 
 
 def test_symbol_detection_integration():
@@ -43,6 +48,16 @@ def test_graph_netlist_solver_simplify_render(tmp_path):
     assert "0" in sol.node_voltages
     steps = simplify(g)
     assert isinstance(steps, list)
+    from circuitforge.common.models import DetectedComponent
+    d = [DetectedComponent("1", "R", (0,0,20,10)), DetectedComponent("2", "R", (30,0,20,10))]
+    g = extract_graph(d)
+    nl = generate_netlist(g)
+    assert "R" in nl
+    assert validate_netlist(g) == []
+    sol = solve_circuit(g)
+    assert sol.equivalent_resistance is not None
+    steps = simplify(g)
+    assert len(steps) >= 1
     out = render_circuit(g, str(tmp_path / "c.svg"))
     assert Path(out).exists()
 
@@ -52,5 +67,8 @@ def test_ambiguity_handling():
     try:
         extract_graph(d)
         assert False, "Expected ambiguity error"
+    from circuitforge.common.models import DetectedComponent
+    try:
+        extract_graph([DetectedComponent("1", "R", (0,0,5,5))])
     except ValueError as e:
         assert "Ambiguous" in str(e)

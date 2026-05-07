@@ -34,3 +34,8 @@ def preprocess_image(image: np.ndarray) -> dict[str, np.ndarray]:
         "junction_map": junction_map,
         "cropped": cropped,
     }
+    denoised = cv2.GaussianBlur(gray, (5, 5), 0)
+    thresh = cv2.adaptiveThreshold(denoised, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY_INV, 31, 2)
+    edges = cv2.Canny(thresh, 50, 150)
+    lines = cv2.HoughLinesP(edges, 1, np.pi / 180, threshold=30, minLineLength=15, maxLineGap=5)
+    return {"gray": gray, "denoised": denoised, "thresh": thresh, "edges": edges, "lines": lines if lines is not None else np.empty((0,1,4), dtype=int)}

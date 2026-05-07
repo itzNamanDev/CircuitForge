@@ -8,6 +8,8 @@ if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 import tempfile
+import tempfile
+from pathlib import Path
 import streamlit as st
 from circuitforge.pipeline.orchestrator import run_pipeline
 
@@ -22,6 +24,13 @@ if "result_data" not in st.session_state:
 
 uploaded = st.file_uploader("Upload circuit image", type=["png", "jpg", "jpeg"])
 query = st.chat_input("Ask: solve this circuit / show first simplification / show next step / why combined?")
+st.caption("Structured extraction + netlist + physics solver. LLM used for explanations only.")
+
+if "history" not in st.session_state:
+    st.session_state.history = []
+
+uploaded = st.file_uploader("Upload circuit image", type=["png", "jpg", "jpeg"])
+query = st.chat_input("Ask follow-up (e.g., show next simplification step)")
 
 if uploaded:
     with tempfile.NamedTemporaryFile(delete=False, suffix=".png") as tmp:
@@ -40,6 +49,14 @@ if st.session_state.result_data:
     st.write([vars(d) for d in data["detected"]])
     st.subheader("Generated Netlist")
     st.code(data["netlist"])
+    data = run_pipeline(img_path, render_dir="outputs")
+
+    st.subheader("Extracted Components")
+    st.write([vars(d) for d in data["detected"]])
+
+    st.subheader("Generated Netlist")
+    st.code(data["netlist"])
+
     st.subheader("Simplification Steps")
     for i, step in enumerate(data["steps"], 1):
         st.markdown(f"**Step {i}**: {step.description}")
@@ -53,6 +70,20 @@ if st.session_state.result_data:
     st.json({"node_voltages": data["result"].node_voltages, "branch_currents": data["result"].branch_currents,
              "equivalent_resistance": data["result"].equivalent_resistance, "capacitor_charges": data["result"].capacitor_charges,
              "meter_readings": data["result"].meter_readings, "warnings": data["warnings"]})
+
+    st.subheader("Rendered Equivalents")
+    for p in data["render_paths"]:
+        if Path(p).exists():
+            st.image(p)
+
+    st.subheader("Numerical Results")
+    st.json({
+        "node_voltages": data["result"].node_voltages,
+        "branch_currents": data["result"].branch_currents,
+        "equivalent_resistance": data["result"].equivalent_resistance,
+        "warnings": data["warnings"],
+    })
+
     st.subheader("Explanation")
     st.write(data["explanation"])
 
