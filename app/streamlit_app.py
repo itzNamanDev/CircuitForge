@@ -1,4 +1,13 @@
 from __future__ import annotations
+import sys
+from pathlib import Path
+
+# Ensure repo root is importable when Streamlit executes from app/ directory.
+REPO_ROOT = Path(__file__).resolve().parents[1]
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
+
+import tempfile
 import tempfile
 from pathlib import Path
 import streamlit as st
@@ -53,6 +62,14 @@ if st.session_state.result_data:
         st.markdown(f"**Step {i}**: {step.description}")
         st.caption(step.reason)
         st.code(step.netlist_after)
+    st.subheader("Equivalent Circuit Images")
+    for p in data["render_paths"]:
+        if Path(p).exists():
+            st.image(p)
+    st.subheader("Final Numerical Results")
+    st.json({"node_voltages": data["result"].node_voltages, "branch_currents": data["result"].branch_currents,
+             "equivalent_resistance": data["result"].equivalent_resistance, "capacitor_charges": data["result"].capacitor_charges,
+             "meter_readings": data["result"].meter_readings, "warnings": data["warnings"]})
 
     st.subheader("Rendered Equivalents")
     for p in data["render_paths"]:
