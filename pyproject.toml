@@ -1,0 +1,26 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "circuitforge"
+version = "0.1.0"
+description = "AI-assisted circuit solver with structured extraction and physics-based solving"
+requires-python = ">=3.10"
+dependencies = [
+  "streamlit>=1.35",
+  "opencv-python-headless>=4.10",
+  "numpy>=1.26",
+  "scipy>=1.13",
+  "pytesseract>=0.3.10",
+  "networkx>=3.3",
+  "matplotlib>=3.9",
+  "schemdraw>=0.19",
+  "pydantic>=2.8",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.2", "pytest-cov>=5.0"]
+
+[tool.setuptools.packages.find]
+include = ["circuitforge*"]
